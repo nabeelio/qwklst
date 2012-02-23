@@ -1,0 +1,12 @@
+<div class="well">
+    <h1><%=list.name%></h1>
+    <p>&nbsp;</p>
+    <div id="list_parent" class="list"></div>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var list = <%- list.items %>;
+    pageActions(list);
+})();
+</script>
