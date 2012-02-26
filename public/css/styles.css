@@ -1,3 +1,11 @@
+html { height: 100%; }
+body { background: url('../img/background.png') repeat-x #F2F2F2; height: 100%;}
+div.hero-unit { background: #fff; }
 input.front-create { margin-top: 10px; padding: 9px 14px; font-size: 15px; }
 ul.list { font-size: 24px; }
 ul.list li { line-height: 50px; cursor: pointer; }
+a.mini_add { font-size: 10px; font-style: normal; text-decoration: none;}
+
+div.container { min-height: 100%; }
+h1.list_title { font-family: 'Ubuntu', sans-serif; font-size: 48px; }
+div.list-items { background: #FFF; border-color: #999; border-top: none; margin-top: 0; margin-bottom: 0; height: 100%;}
