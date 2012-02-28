@@ -9,39 +9,28 @@ function pageActions(list) {
 	$("input.add_item").live('keydown', function(e) {
 
 		var txtElem = $(this);
+		var text = txtElem.val();
 
-		if(e.which == 13) {
+		console.log(e.which);
+		if(e.which == 13) { // enter
 			e.preventDefault();
-			var text = txtElem.val(); txtElem.val("");
+			txtElem.val("");
 			if(text.length == 0) { return; }
 
 			txtElem.closest('li').before(liElement(null, text));
 			saveChanges();
+		} else if(e.which == 27) { // escape
+			txtElem.closest('li').remove();
 		}
 
 		if(e.which == 9 && e.shiftKey) { // shift tab, to un-indent
 			e.preventDefault();
-
-			if($("ul#list li").length == 1)
-				return false; // dont allow tab on first entry
-
-			// find the parent UL and add an LI under that
-			var text = txtElem.val(); txtElem.val("");
-			var ul = txtElem.closest('ul');
-			var new_li = ul.after(placeHolder(false)).next();
-			new_li.children('input').val(text).focus();
-
-			if(ul.children('li').length == 1) { // the ul is empty, remove it
-				ul.remove();
-			}
-
-			txtElem.closest('li').remove();
-		}
-
-		else if(e.which == 9) { // tab so indent it
+			unindent(txtElem);
+		} else if(e.which == 9) { // tab so indent it
 			e.preventDefault();
 			indent(txtElem);
 		}
+
 	});
 
 	$("a.mini_add").live('click', function(e) {
@@ -66,11 +55,10 @@ function pageActions(list) {
 	/** editable list items */
 	$("span.editable").live('click', function(e) {
 		e.preventDefault();
+		var parent = $(this).parents()[0];
 		var text = $(this).html();
-		// TODO: remove any other edit boxes
-		
 		var el = $(this).replaceWith("<input type='text' name='' class='edit_item' value='"+text+"' />");
-		// TODO: focus on the above element
+		$(parent).find('input').focus();
 	});
 
 	/* Press enter on the edit field from above, revert back to span and save it */
@@ -80,8 +68,15 @@ function pageActions(list) {
 			var text = $(this).val();
 			txtElem.replaceWith("<span class='editable'>"+text+"</span>");
 			saveChanges();
+		} else if(e.which == 27) { // escape
+			var text = $(this).val();
+			txtElem.replaceWith("<span class='editable'>"+text+"</span>");
 		}
-		else if(e.which == 9) { // tab so indent it
+
+		if(e.which == 9 && e.shiftKey) {
+			e.preventDefault();
+			unindent(txtElem);
+		} else if(e.which == 9) { // tab so indent it
 			e.preventDefault();
 			indent(txtElem);
 		}
@@ -89,15 +84,19 @@ function pageActions(list) {
 }
 
 function indent(txtElem) {
-	if($("ul#list li").length == 1)
+
+	var root_li, elem, adj_li;
+
+	if($("ul#list li").length == 1) {
 		return false; // don't allow tab on first entry
+	}
 
 	// get the closest UL in the same line as the LI
-	var root_li = $(txtElem.parents('li')[0]);
-	var elem = root_li.prev('ul'); // find a UL in the same vicinity
+	root_li = $(txtElem.parents('li')[0]);
+	elem = root_li.prev('ul'); // find a UL in the same vicinity
 
 	if(elem.length == 0) {
-		var adj_li = root_li.prev('li'); // append it to the last LI, if exists
+		adj_li = root_li.prev('li'); // append it to the last LI, if exists
 		if(adj_li.length > 0) {
 			adj_li.append('<ul>'+placeHolder(true, txtElem.val())+'</ul>');
 			txtElem.closest('li').remove();
@@ -108,10 +107,34 @@ function indent(txtElem) {
 		elem.find('input').focus();
 		$(txtElem.parents('li')[0]).remove(); // remove the original un-indented one
 	}
+
+	return true;
 }
 
-function unindent(elem) {
+function unindent(txtElem) {
 
+	if($("ul#list li").length == 1)
+		return false; // don't allow tab on first entry
+
+	var ul, li;
+
+	// find the parent UL and add an LI under that
+	ul = txtElem.closest('ul');
+	if(!ul) // no UL element found, can't un-indent
+		return false;
+
+	li = ul.closest('li');
+	if(!li)  // no parent LI in the UL, can't un-indent
+		return false;
+
+	li.after(placeHolder(true, txtElem.val()));
+	if(li.find('ul')[0].children.length === 0) {
+		li.find('ul').remove();
+	}
+
+	txtElem.closest('li').remove();
+	$(li).next('li').find('input').focus();
+	return true;
 }
 
 /**
@@ -121,14 +144,18 @@ function unindent(elem) {
  */
 function placeHolder(include_input, value) {
 
+	var id, tmp;
+
 	value = (value == null || value === undefined) ? "" : value;
 	include_input = (include_input === null || include_input === undefined) ? true : include_input;
 
-	var tmp = "<li class='link'>";
+	id = murmurhash3_32_gc(new Date, new Date);;
+	tmp = "<li id='"+id+"' class='link'>";
 	if(include_input === true) {
 		tmp += "<input class='add_item' value='"+value+"' type='text' placeholder='add item' />";
 	}
 	tmp += "</li>";
+
 	return tmp;
 }
 
@@ -137,9 +164,12 @@ function placeHolder(include_input, value) {
  * @param id ID of the list element
  * @param text actual list item text
  */
-function liElement(id, text) {
+function liElement(id, text, close) {
+	close = (close === null || close === undefined) ? true : close;
 	id = (id === null || id === undefined) ? murmurhash3_32_gc(text, new Date()) : id;
-	return "<li id='"+id+"'><span class='editable'>"+text+"</span>&nbsp;&nbsp;<a href='#' class='mini_add'>(add)</a></li>";
+	var tmp = "<li id='"+id+"'><span class='editable'>"+text+"</span>&nbsp;&nbsp;<a href='#' class='mini_add'>(add)</a>";
+	if(close === true) { tmp += "</li>"; }
+	return tmp;
 }
 
 /**
@@ -148,13 +178,18 @@ function liElement(id, text) {
  * @param ul_id ID to assign to the UL element
  */
 function loadList(list, ul_id, placeholder) {
+
 	placeholder = (placeholder === null || placeholder === undefined) ? true : placeholder;
+
+	var close_li;
 	var list_html = '<ul id="'+ul_id+'" class="list">';
 	$.each(list, function(i, item){
-		if(item instanceof Array) { //wtf? typeof(item) === "object" >:O
-			list_html += loadList(item, '', false);
+		if(item instanceof Array) { //wtf? typeof(item) === "object" >:o
+			list_html += loadList(item, '', false) + '</li>';
 		} else {
-			list_html += liElement(item.id, item.title);
+			// see if we have children, if not, then don't close the LI tag here
+			close_li = !(list[i+1] instanceof Array);
+			list_html += liElement(item.id, item.title, close_li);
 		}
 	});
 
@@ -186,18 +221,21 @@ function serializeList(list) {
  * save the serialized list
  */
 function saveChanges() {
+
 	var list = serializeList($("ul#list"));
-	var data = JSON.stringify(serializeList($("ul#list")));
+	var data = JSON.stringify(list);
+	//console.log(list);
+
 	//$("div#list_parent").html(loadList(list, "list"));
 	// TODO save this shit
-	$.ajax('/save', {
+	/*$.ajax('/save', {
 		dataType: 'json', data: {
 			auth: '', prefix: '', name: '', list: data
 		},
 		success: function (d, t, xhr) {
-			console.log(d);
+			//console.log(d);
 		}
-	});
+	});*/
 }
 
 function murmurhash3_32_gc(key, seed) {
