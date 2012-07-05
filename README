@@ -1,1 +1,5 @@
 npm install hiredis redis express jqtpl
+
+====
+
+A "practice" app in node.js app for building lists
